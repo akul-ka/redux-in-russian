@@ -1,38 +1,37 @@
-# Server Rendering
+# Серверный рендеринг
 
-The most common use case for server-side rendering is to handle the _initial render_ when a user (or search engine crawler) first requests our app.  When the server receives the request, it renders the required component(s) into an HTML string, and then sends it as a response to the client.  From that point on, the client takes over rendering duties.
+Наиболее распространенный случай использования серверного рендеринга — это необходимость обрабатывать _первоначальный рендер_, когда пользователь (или поисковый робот) впервые запрашивает наше приложение. Когда сервер получает запрос, он рендерит требуемый(ые) компонент(ы) в HTML-строку и затем посылает в качестве ответа клиенту. С этого момента клиент берет на себя обязанности рендеринга.
 
-We will use React in the examples below, but the same techniques can be used with other view frameworks that can render on the server.
+Мы будем использовать React в примерах ниже, но эти приемы также могут быть использованы с другими фреймворками, которые умеют рендерить на сервере.
 
-### Redux on the Server
+### Redux на сервере
 
-When using Redux with server rendering, we must also send the state of our app along in our response, so the client can use it as the initial state. This is important because, if we preload any data before generating the HTML, we want the client to also have access to this data. Otherwise, the markup generated on the client won't match the server markup, and the client would have to load the data again.
+Когда мы используем Redux вместе с серверным рендерингом, мы должны также отправлять состояние нашего приложения вместе с запросом, так клиент может использовать это в качестве начального состояния. Это важно потому что если мы подгружаем любые данные до генерирования HTML, то мы хотим, чтобы клиент также имел доступ к этим данным. В противном случае, сгенерированная на клиенте разметка не будет совпадать с серверной разметкой, и клиенту придется запрашивать данные снова.
 
-To send the data down to the client, we need to:
+Чтобы отправить данные клиенту, нам надо:
 
-* create a fresh, new Redux store instance on every request;
-* optionally dispatch some actions;
-* pull the state out of store;
-* and then pass the state along to the client.
+* создать свежий, новый экземпляр Redux-хранилища в ответ на каждый запрос;
+* (необязательно) отправить некоторые действия;
+* вытянуть состояние из хранилища;
+* и затем передать состояние вместе с клиентом.
 
-On the client side, a new Redux store will be created and initialized with the state provided from the server.  
-Redux's **_only_** job on the server side is to provide the **initial state** of our app.
+На клиентской стороне новое Redux-хранилище будет создано и инициализировано вместе с состоянием, переданным сервером.
+Работа Redux на серверной стороне состоит **_только_** в том, чтобы передать **начальное состояние** нашего приложения.
 
-## Setting Up
+## Настройка
 
-In the following recipe, we are going to look at how to set up server-side rendering. We'll use the simplistic [Counter app](https://github.com/reactjs/redux/tree/master/examples/counter) as a guide and show how the server can render state ahead of time based on the request.
+В следующем рецепте мы собираемся взглянуть на то, как установить рендеринг на серверной стороне. Мы будем использовать упрощенный [Counter app](https://github.com/reactjs/redux/tree/master/examples/counter) пример в качестве руководства и покажем, как сервер может рендерить состояние досрочно на основе запроса.
 
-### Install Packages
-
-For this example, we'll be using [Express](http://expressjs.com/) as a simple web server. We also need to install the React bindings for Redux, since they are not included in Redux by default.
+### Установка пакетов
+Для примера, мы будем использовать [Express](http://expressjs.com/) в качестве простого web-сервера. Также нам надо установить зависимости React для Redux, т.к. они не включены по умолчанию в Redux.
 
 ```
 npm install --save express react-redux
 ```
 
-## The Server Side
+## Серверная сторона
 
-The following is the outline for what our server side is going to look like. We are going to set up an [Express middleware](http://expressjs.com/guide/using-middleware.html) using [app.use](http://expressjs.com/api.html#app.use) to handle all requests that come in to our server. If you're unfamiliar with Express or middleware, just know that our handleRender function will be called every time the server receives a request.
+Следующим по плану идет вид нашего сервера. Мы собираемся установить [Express middleware](http://expressjs.com/guide/using-middleware.html), сипользуя [app.use](http://expressjs.com/api.html#app.use) для отлова всех запросов, которые поступают на сервер. Если Вы не знакомы с Express или миддлвэром, то знайте, что наша функция handleRender будет вызываться каждый раз, когда сервер будет получать запрос.
 
 ##### `server.js`
 
@@ -58,15 +57,15 @@ function renderFullPage(html, preloadedState) { /* ... */ }
 app.listen(port)
 ```
 
-### Handling the Request
+### Отлавливание запроса
 
-The first thing that we need to do on every request is create a new Redux store instance. The only purpose of this store instance is to provide the initial state of our application.
+Первая вещь, которую нам надо сделать для каждого запроса — это создать новый экзмепляр Redux-хранилища. Единственно назначение этого экземпляра хранилища — это обеспечивать начальное состояние нашего приложения.
 
-When rendering, we will wrap `<App />`, our root component, inside a `<Provider>` to make the store available to all components in the component tree, as we saw in [Usage with React](../basics/UsageWithReact.md).
+Когда будем рендерить, мы обернем наш главный компонент `<App />` в `<Provider>`, чтобы хранилище было доступно всем компонентам дерева, также как мы делали в [Использование с  React](../basics/UsageWithReact.md).
 
-The key step in server side rendering is to render the initial HTML of our component _**before**_ we send it to the client side. To do this, we use [ReactDOMServer.renderToString()](https://facebook.github.io/react/docs/top-level-api.html#reactdomserver.rendertostring).
+Ключевой шаг в серверном рендеринге — это рендер HTML-разметки компонента _**до**_ отправки на клиент. Чтобы сделать это, мы используем [ReactDOMServer.renderToString()](https://facebook.github.io/react/docs/top-level-api.html#reactdomserver.rendertostring).
 
-We then get the initial state from our Redux store using [`store.getState()`](../api/Store.md#getState). We will see how this is passed along in our `renderFullPage` function.
+Затем мы получаем начальное состояние из нашего Redux-хранилища с помощью [`store.getState()`](../api/Store.md#getState). Мы увидим, как это передается вместе с нашей функцией `renderFullPage`.
 
 ```js
 import { renderToString } from 'react-dom/server'
@@ -90,13 +89,13 @@ function handleRender(req, res) {
 }
 ```
 
-### Inject Initial Component HTML and State
+### Внедрение начальной HTML-разметки и состояния
 
-The final step on the server side is to inject our initial component HTML and initial state into a template to be rendered on the client side. To pass along the state, we add a `<script>` tag that will attach `preloadedState` to `window.__PRELOADED_STATE__`.
+Конечным шагом серверного рендеринга является внедрение нашей начальной разметки компонента и начального состояния в шаблон для рендеринга на клиенте. Чтобы отправить вместе с состоянием, мы добавив `<script>` тэг, который будет прикреплять `preloadedState` к `window.__PRELOADED_STATE__`.
 
-The `preloadedState` will then be available on the client side by accessing `window.__PRELOADED_STATE__`.
+`preloadedState` затем будет доступно на клиенте через `window.__PRELOADED_STATE__`.
 
-We also include our bundle file for the client-side application via a script tag. This is whatever output your bundling tool provides for your client entry point. It may be a static file or a URL to a hot reloading development server.
+Мы также включаем наш bundle-файл для клиента через тег `<script>`. Это любой выход чтобы передать ваши упакованные инструменты на клиентскую стороны. Это может быть статичный файл или URL для быстрой перезагрузки сервера разработки.
 
 ```js
 function renderFullPage(html, preloadedState) {
@@ -118,15 +117,15 @@ function renderFullPage(html, preloadedState) {
 }
 ```
 
->##### Note on String Interpolation Syntax
+>##### Помните о синтаксисе интерполяции строк
 
->In the example above, we use ES6 [template strings](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/template_strings) syntax. It lets us write multiline strings and interpolate values, but it requires ES6 support. If you'd like to write your Node code using ES6, check out [Babel require hook](https://babeljs.io/docs/usage/require/) documentation. Or you can just keep writing ES5 code.
+>В примере выше мы использовали синтаксис [шаблонных строк](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/template_strings) ES6. Это позволило нам писать многострочные строки и интерполировать значения, но это требует поддерки ES6. Если Вы хотите писать Ваш Node-код, используя ES6, посмотрите документацию [Babel require hook](https://babeljs.io/docs/usage/require/). Или же Вы просто можете использовать ES5.
 
-## The Client Side
+## Клиентская сторона
 
-The client side is very straightforward. All we need to do is grab the initial state from `window.__PRELOADED_STATE__`, and pass it to our [`createStore()`](../api/createStore.md) function as the initial state.
+Клиентская сторона — очень простая. Всё, что нам нужно сделать, — это захватить начальное состояние из `window.__PRELOADED_STATE__`, и передать его в наш [`createStore()`](../api/createStore.md) в качестве начального состояния.
 
-Let's take a look at our new client file:
+Давайте посмотрим на наш новый клиентский файл:
 
 #### `client.js`
 
@@ -152,15 +151,15 @@ render(
 )
 ```
 
-You can set up your build tool of choice (Webpack, Browserify, etc.) to compile a bundle file into `static/bundle.js`.
+Вы можете установить сборщик на Ваш выбор (Webpack, Browserify, и т.д.), чтобы сгенерировать bundle-файл `static/bundle.js`.
 
-When the page loads, the bundle file will be started up and [`ReactDOM.render()`](https://facebook.github.io/react/docs/top-level-api.html#reactdom.render) will hook into the `data-react-id` attributes from the server-rendered HTML. This will connect our newly-started React instance to the virtual DOM used on the server. Since we have the same initial state for our Redux store and used the same code for all our view components, the result will be the same real DOM.
+Когда страница загружена, bundle-файл запустится, и [`ReactDOM.render()`](https://facebook.github.io/react/docs/top-level-api.html#reactdom.render) «подцепится» к `data-react-id` атрибуту из сгенерированного сервером HTML. Это подсоединит наш недавно запущенный экземпляр React к виртуальному дереву DOM, используемому на сервере. Теперь у нас то же самое начальное состояние Redux-хранилища, и использование этого же кода для всех компонентов позволит получить в точности такой же реальный DOM.
 
-And that's it! That is all we need to do to implement server side rendering.
+И это всё! Это всё, что нам нужно сделать, чтобы осуществить серверный рендеринг.
 
-But the result is pretty vanilla. It essentially renders a static view from dynamic code. What we need to do next is build an initial state dynamically to allow that rendered view to be dynamic.
+Но результат все еще «голый». Это по существу рендерит статическое представление из динамического кода. Что нам надо сделать дальше — это построить начальное состояние динамически чтобы дать возможность этому срендеренному представлению быть динамическим.
 
-## Preparing the Initial State
+## Подготовка начального состояния
 
 Because the client side executes ongoing code, it can start with an empty initial state and obtain any necessary state on demand and over time. On the server side, rendering is synchronous and we only get one shot to render our view. We need to be able to compile our initial state during the request, which will have to react to input and obtain external state (such as that from an API or database).
 
